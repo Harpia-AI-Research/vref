@@ -146,14 +146,16 @@ npx @harpiaresearch/vref
 
 **CLI:**
 ```bash
-# From a directory
+# From a directory (via npx or global/local vref)
 npx @harpiaresearch/vref ./my-images -o references.vref
 
-# With metadata
+# With metadata (including title name)
 npx @harpiaresearch/vref ./images -o pack.vref \
   -n "My Reference Pack" \
   -d "Collection of art references" \
-  -t "art,style,inspiration"
+  -t "art,style,inspiration" \
+  -a "Your Name" \
+  -l "CC-BY-4.0"
 ```
 
 **Code:**
@@ -161,13 +163,28 @@ npx @harpiaresearch/vref ./images -o pack.vref \
 import { VREFWriter } from '@harpiaresearch/vref';
 
 const writer = new VREFWriter({
-  fileName: 'references.vref',
-  description: 'Art style references',
+  name: 'Art Style References',
+  description: 'Collection of curated art style references',
   tags: ['art', 'style'],
+  author: 'Your Name',
+  license: 'CC-BY-4.0',
 });
 
 writer.addImagesFromDirectory('./images');
 writer.write('references.vref');
+```
+
+### Inspecting, Validating & Extracting via CLI
+
+```bash
+# Inspect metadata and images in a pack
+vref info references.vref
+
+# Validate format and manifest integrity
+vref validate references.vref
+
+# Extract images to a directory
+vref extract references.vref ./extracted-images
 ```
 
 ### Reading a .vref File
@@ -175,8 +192,11 @@ writer.write('references.vref');
 ```typescript
 import { VREFReader } from '@harpiaresearch/vref';
 
-// Read file
-const vref = VREFReader.read('references.vref', { loadImages: true });
+// Read file (optional validation & preloading)
+const vref = VREFReader.read('references.vref', {
+  validate: true,
+  loadImages: true,
+});
 
 console.log(`Loaded ${vref.manifest.imageCount} images`);
 
@@ -185,6 +205,9 @@ const randomSamples = vref.sample(3);
 
 // Get specific image
 const image = vref.getImage('photo1.png');
+
+// Extract all images to disk
+VREFReader.extract('references.vref', './extracted');
 ```
 
 ---
@@ -243,7 +266,7 @@ references.vref
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.0.2",
   "format": "VREF",
   "fileName": "references.vref",
   "imageCount": 24,
@@ -256,8 +279,9 @@ references.vref
       "height": 1080
     }
   ],
-  "createdAt": "2024-10-12T10:30:00.000Z",
+  "createdAt": "2026-10-13T10:30:00.000Z",
   "metadata": {
+    "name": "RPG Sprites",
     "description": "Collection of references",
     "tags": ["style", "mood"],
     "author": "Your Name",
@@ -286,8 +310,9 @@ No company owns it. Community-driven. Free forever.
 ### 📦 Already Shipping
 - ✅ npm package published
 - ✅ Full TypeScript support
-- ✅ CLI tool ready
-- ✅ Documentation complete
+- ✅ CLI tool ready (`create`, `info`, `validate`, `extract`)
+- ✅ Automated test suite (`node:test`)
+- ✅ Complete documentation
 
 ### 🇧🇷 Made in Brazil
 Harpia AI Research is putting Brazil on the map of AI innovation.
@@ -306,6 +331,7 @@ class VREFWriter {
   
   write(outputPath: string): void;
   getImageCount(): number;
+  clear(): void;
 }
 ```
 
@@ -316,6 +342,7 @@ class VREFReader {
   static read(filePath: string, options?: VREFReadOptions): VREFReadResult;
   static readManifest(filePath: string): VREFManifest;
   static validate(filePath: string): { valid: boolean; errors: string[] };
+  static extract(filePath: string, targetDir: string): void;
 }
 ```
 
@@ -338,7 +365,8 @@ Full API documentation: [TypeScript definitions](src/types.ts)
 
 ### Phase 1 ✅ (Done)
 - Core library implementation
-- CLI tool
+- CLI tool (`create`, `info`, `validate`, `extract`)
+- Automated test coverage
 - npm package published
 - Full documentation
 

@@ -31,6 +31,9 @@ export interface VREFManifest {
   
   /** Optional metadata */
   metadata?: {
+    /** Human-readable title/name of the reference pack */
+    name?: string;
+    
     /** Description of the reference pack */
     description?: string;
     
@@ -72,8 +75,11 @@ export interface ImageMetadata {
  * Options for creating a VREF file
  */
 export interface VREFCreateOptions {
-  /** Name for the output .vref file */
-  fileName: string;
+  /** Optional name/title for the reference pack */
+  name?: string;
+
+  /** Name for the output .vref file (optional, defaults to output path file name) */
+  fileName?: string;
   
   /** Optional description */
   description?: string;

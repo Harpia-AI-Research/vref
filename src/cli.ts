@@ -1,54 +1,155 @@
 #!/usr/bin/env node
 /**
- * VREF CLI - Command line interface for creating .vref files
+ * VREF CLI - Command line interface for .vref files
  * Harpia AI Research
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { VREFWriter } from './VREFWriter';
+import { VREFReader } from './VREFReader';
+
+const CLI_VERSION = '1.0.2';
 
 function showHelp() {
   console.log(`
 ┌─────────────────────────────────────────────────┐
-│  VREF CLI v1.0.0                                │
+│  VREF CLI v${CLI_VERSION}                                │
 │  by Harpia AI Research                          │
 │  https://harpiaresearch.cc                      │
 └─────────────────────────────────────────────────┘
 
-Create .vref files from images
+Standardized container for curated visual references in AI image generation
 
 USAGE:
-  npx create-vref <input> [options]
-  
-ARGUMENTS:
-  <input>              Path to image file or directory
+  npx @harpiaresearch/vref <input> [options]
+  vref <command> [arguments]
 
-OPTIONS:
-  -o, --output <path>  Output .vref file path (default: output.vref)
-  -n, --name <name>    Name for the reference pack
-  -d, --desc <text>    Description of the reference pack
-  -t, --tags <tags>    Comma-separated tags
-  -a, --author <name>  Author name
-  -l, --license <lic>  License (e.g., CC-BY-4.0, MIT)
-  -r, --recursive      Include subdirectories
-  -h, --help           Show this help
+COMMANDS:
+  <input> [options]          Create a .vref file from an image or directory
+  info, inspect <file.vref>  Inspect metadata and images in a .vref file
+  validate <file.vref>       Validate integrity and manifest of a .vref file
+  extract <file.vref> [dir]  Extract all images from a .vref file
+
+CREATION OPTIONS:
+  -o, --output <path>   Output .vref file path (default: output.vref)
+  -n, --name <name>     Name/title for the reference pack
+  -d, --desc <text>     Description of the reference pack
+  -t, --tags <tags>     Comma-separated tags
+  -a, --author <name>   Author name
+  -l, --license <lic>   License (e.g., CC-BY-4.0, MIT)
+  -r, --recursive       Include subdirectories
+  -v, --version         Show CLI version
+  -h, --help            Show this help
 
 EXAMPLES:
-  # Create from single image
-  npx create-vref image.png -o references.vref
-  
   # Create from directory
-  npx create-vref ./images -o pack.vref -n "My Pack"
-  
-  # With metadata
-  npx create-vref ./sprites -o rpg-sprites.vref \\
+  npx @harpiaresearch/vref ./images -o pack.vref -n "My Pack"
+
+  # Create with complete metadata
+  npx @harpiaresearch/vref ./sprites -o rpg-sprites.vref \\
     -n "RPG Sprites" \\
     -d "Character sprites for RPG games" \\
     -t "rpg,sprites,pixelart" \\
     -a "Your Name" \\
     -l "CC-BY-4.0"
-  `);
+
+  # Inspect an existing .vref file
+  vref info references.vref
+
+  # Validate file integrity
+  vref validate references.vref
+
+  # Extract images
+  vref extract references.vref ./extracted-images
+`);
+}
+
+function handleValidate(filePath: string) {
+  if (!filePath) {
+    console.error('❌ Error: Please specify a .vref file to validate');
+    process.exit(1);
+  }
+
+  console.log(`🔍 Validating ${filePath}...`);
+  const result = VREFReader.validate(filePath);
+
+  if (result.valid) {
+    const manifest = VREFReader.readManifest(filePath);
+    console.log(`✅ Valid .vref file!`);
+    console.log(`   Format: ${manifest.format} (v${manifest.version})`);
+    console.log(`   Images: ${manifest.imageCount}`);
+    if (manifest.metadata?.name) console.log(`   Name: ${manifest.metadata.name}`);
+  } else {
+    console.error(`❌ Validation failed with ${result.errors.length} error(s):`);
+    result.errors.forEach(err => console.error(`   - ${err}`));
+    process.exit(1);
+  }
+}
+
+function handleInfo(filePath: string) {
+  if (!filePath) {
+    console.error('❌ Error: Please specify a .vref file to inspect');
+    process.exit(1);
+  }
+
+  try {
+    const manifest = VREFReader.readManifest(filePath);
+    const stats = fs.statSync(filePath);
+    const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+    console.log(`\n📦 File: ${path.basename(filePath)} (${sizeMB} MB)`);
+    console.log(`   Format: ${manifest.format} v${manifest.version}`);
+    console.log(`   Created at: ${manifest.createdAt}`);
+    console.log(`   Total images: ${manifest.imageCount}`);
+
+    if (manifest.metadata) {
+      console.log('\n📋 Metadata:');
+      if (manifest.metadata.name) console.log(`   Name: ${manifest.metadata.name}`);
+      if (manifest.metadata.description) console.log(`   Description: ${manifest.metadata.description}`);
+      if (manifest.metadata.tags && manifest.metadata.tags.length > 0) {
+        console.log(`   Tags: ${manifest.metadata.tags.join(', ')}`);
+      }
+      if (manifest.metadata.author) console.log(`   Author: ${manifest.metadata.author}`);
+      if (manifest.metadata.license) console.log(`   License: ${manifest.metadata.license}`);
+    }
+
+    if (manifest.images.length > 0) {
+      console.log('\n🖼️ Sample of contained images:');
+      const previewCount = Math.min(manifest.images.length, 5);
+      for (let i = 0; i < previewCount; i++) {
+        const img = manifest.images[i];
+        const dim = img.width && img.height ? ` (${img.width}x${img.height})` : '';
+        const sizeKB = (img.size / 1024).toFixed(1);
+        console.log(`   - ${img.path} [${img.format.toUpperCase()}]${dim} - ${sizeKB} KB`);
+      }
+      if (manifest.images.length > previewCount) {
+        console.log(`   ... and ${manifest.images.length - previewCount} more`);
+      }
+    }
+    console.log();
+  } catch (error: any) {
+    console.error(`❌ Error inspecting file: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+function handleExtract(filePath: string, outputDir?: string) {
+  if (!filePath) {
+    console.error('❌ Error: Please specify a .vref file to extract');
+    process.exit(1);
+  }
+
+  const targetDir = outputDir || path.join(process.cwd(), path.basename(filePath, '.vref') + '_extracted');
+
+  try {
+    console.log(`📦 Extracting ${filePath} to ${targetDir}...`);
+    VREFReader.extract(filePath, targetDir);
+    console.log(`✅ Extracted successfully to ${targetDir}`);
+  } catch (error: any) {
+    console.error(`❌ Extraction error: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 function parseArgs(args: string[]) {
@@ -73,6 +174,12 @@ function parseArgs(args: string[]) {
         process.exit(0);
         break;
 
+      case '-v':
+      case '--version':
+        console.log(`v${CLI_VERSION}`);
+        process.exit(0);
+        break;
+
       case '-o':
       case '--output':
         options.output = args[++i];
@@ -91,7 +198,7 @@ function parseArgs(args: string[]) {
 
       case '-t':
       case '--tags':
-        options.tags = args[++i].split(',').map((t: string) => t.trim());
+        options.tags = args[++i]?.split(',').map((t: string) => t.trim());
         break;
 
       case '-a':
@@ -110,7 +217,7 @@ function parseArgs(args: string[]) {
         break;
 
       default:
-        if (!arg.startsWith('-')) {
+        if (!arg.startsWith('-') && !options.input) {
           options.input = arg;
         }
         break;
@@ -128,11 +235,38 @@ function main() {
     process.exit(0);
   }
 
+  const firstArg = args[0];
+
+  if (firstArg === 'validate') {
+    handleValidate(args[1]);
+    return;
+  }
+
+  if (firstArg === 'info' || firstArg === 'inspect') {
+    handleInfo(args[1]);
+    return;
+  }
+
+  if (firstArg === 'extract') {
+    handleExtract(args[1], args[2]);
+    return;
+  }
+
+  if (firstArg === '-h' || firstArg === '--help') {
+    showHelp();
+    process.exit(0);
+  }
+
+  if (firstArg === '-v' || firstArg === '--version') {
+    console.log(`v${CLI_VERSION}`);
+    process.exit(0);
+  }
+
   const options = parseArgs(args);
 
   if (!options.input) {
     console.error('❌ Error: No input specified');
-    console.log('Run "npx create-vref --help" for usage information');
+    console.log('Run "npx @harpiaresearch/vref --help" for usage information');
     process.exit(1);
   }
 
@@ -142,15 +276,14 @@ function main() {
   }
 
   console.log('┌─────────────────────────────────────────────────┐');
-  console.log('│  VREF CLI v1.0.0                                │');
+  console.log(`│  VREF CLI v${CLI_VERSION}                                │`);
   console.log('│  by Harpia AI Research                          │');
   console.log('└─────────────────────────────────────────────────┘\n');
 
   try {
-    const fileName = options.name || path.basename(options.output, '.vref');
-
     const writer = new VREFWriter({
-      fileName: options.output,
+      fileName: path.basename(options.output),
+      name: options.name,
       description: options.description,
       tags: options.tags,
       author: options.author,

@@ -112,13 +112,14 @@ export class VREFWriter {
 
     // Create manifest
     const manifest: VREFManifest = {
-      version: '1.0.0',
+      version: '1.0.2',
       format: 'VREF',
-      fileName: path.basename(outputPath),
+      fileName: this.options.fileName || path.basename(outputPath),
       imageCount: this.images.size,
       images: imageMetadataList,
       createdAt: new Date().toISOString(),
       metadata: {
+        name: this.options.name,
         description: this.options.description,
         tags: this.options.tags,
         author: this.options.author,
@@ -145,26 +146,59 @@ export class VREFWriter {
    * Validate image buffer by checking magic bytes
    */
   private isValidImageBuffer(buffer: Buffer, format: string): boolean {
-    if (buffer.length < 8) return false;
+    if (!buffer || buffer.length < 8) return false;
 
     switch (format.toLowerCase()) {
       case 'png':
-        return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+        return (
+          buffer.length >= 8 &&
+          buffer[0] === 0x89 &&
+          buffer[1] === 0x50 &&
+          buffer[2] === 0x4e &&
+          buffer[3] === 0x47
+        );
       
       case 'jpg':
       case 'jpeg':
-        return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+        return (
+          buffer.length >= 3 &&
+          buffer[0] === 0xff &&
+          buffer[1] === 0xd8 &&
+          buffer[2] === 0xff
+        );
       
       case 'gif':
-        return buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46;
+        return (
+          buffer.length >= 6 &&
+          buffer[0] === 0x47 &&
+          buffer[1] === 0x49 &&
+          buffer[2] === 0x46 &&
+          buffer[3] === 0x38 &&
+          (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+          buffer[5] === 0x61
+        );
       
       case 'webp':
-        return buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+        return (
+          buffer.length >= 12 &&
+          buffer[0] === 0x52 &&
+          buffer[1] === 0x49 &&
+          buffer[2] === 0x46 &&
+          buffer[3] === 0x46 &&
+          buffer[8] === 0x57 &&
+          buffer[9] === 0x45 &&
+          buffer[10] === 0x42 &&
+          buffer[11] === 0x50
+        );
       
       case 'avif':
-        // AVIF detection is more complex, but we can check for 'ftyp' box
-        const ftypCheck = buffer.toString('ascii', 4, 8);
-        return ftypCheck === 'ftyp';
+        if (buffer.length < 16) return false;
+        const ftypBox = buffer.toString('ascii', 4, 8);
+        if (ftypBox !== 'ftyp') return false;
+        const majorBrand = buffer.toString('ascii', 8, 12);
+        if (majorBrand === 'avif' || majorBrand === 'avis') return true;
+        const headerSlice = buffer.subarray(12, Math.min(buffer.length, 64)).toString('ascii');
+        return headerSlice.includes('avif') || headerSlice.includes('avis');
       
       default:
         return false;
@@ -172,7 +206,7 @@ export class VREFWriter {
   }
 
   /**
-   * Get image dimensions (basic implementation for PNG and JPEG)
+   * Get image dimensions (supports PNG, JPEG, GIF, WebP)
    */
   private getImageDimensions(buffer: Buffer, format: string): { width: number; height: number } | undefined {
     try {
@@ -183,8 +217,6 @@ export class VREFWriter {
       }
 
       if ((format === 'jpg' || format === 'jpeg') && buffer.length >= 4) {
-        // Basic JPEG dimension extraction (simplified)
-        // This is a simplified version; production code might use a library
         let offset = 2;
         while (offset < buffer.length) {
           if (buffer[offset] !== 0xff) break;
@@ -200,6 +232,33 @@ export class VREFWriter {
 
           const segmentLength = buffer.readUInt16BE(offset);
           offset += segmentLength;
+        }
+      }
+
+      if (format === 'gif' && buffer.length >= 10) {
+        const width = buffer.readUInt16LE(6);
+        const height = buffer.readUInt16LE(8);
+        return { width, height };
+      }
+
+      if (format === 'webp' && buffer.length >= 30) {
+        const chunkType = buffer.toString('ascii', 12, 16);
+        if (chunkType === 'VP8 ' && buffer.length >= 30) {
+          const width = buffer.readUInt16LE(26) & 0x3fff;
+          const height = buffer.readUInt16LE(28) & 0x3fff;
+          return { width, height };
+        } else if (chunkType === 'VP8L' && buffer.length >= 25) {
+          const b1 = buffer[21];
+          const b2 = buffer[22];
+          const b3 = buffer[23];
+          const b4 = buffer[24];
+          const width = 1 + (((b2 & 0x3f) << 8) | b1);
+          const height = 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+          return { width, height };
+        } else if (chunkType === 'VP8X' && buffer.length >= 30) {
+          const width = 1 + buffer.readUIntLE(24, 3);
+          const height = 1 + buffer.readUIntLE(27, 3);
+          return { width, height };
         }
       }
     } catch (error) {

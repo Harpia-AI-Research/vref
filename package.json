@@ -1,6 +1,6 @@
 {
   "name": "@harpiaresearch/vref",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Visual Reference Format - Standardized container for curated visual references in AI image generation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,8 +10,8 @@
     "LICENSE"
   ],
   "bin": {
-    "create-vref": "./dist/cli.js",
-    "vref": "./dist/cli.js"
+    "create-vref": "dist/cli.js",
+    "vref": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -32,7 +32,7 @@
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Harpia-AI-Research/vref"
+    "url": "git+https://github.com/Harpia-AI-Research/vref.git"
   },
   "dependencies": {
     "adm-zip": "^0.5.10"

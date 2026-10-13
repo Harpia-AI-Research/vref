@@ -20,6 +20,13 @@ export class VREFReader {
       throw new Error(`File not found: ${filePath}`);
     }
 
+    if (options.validate) {
+      const validation = VREFReader.validate(filePath);
+      if (!validation.valid) {
+        throw new Error(`Invalid .vref file: ${validation.errors.join(', ')}`);
+      }
+    }
+
     const zip = new AdmZip(filePath);
     const zipEntries = zip.getEntries();
 
@@ -171,4 +178,21 @@ export class VREFReader {
       return { valid: false, errors };
     }
   }
+
+  /**
+   * Extract all files from a .vref file to a target directory
+   */
+  static extract(filePath: string, targetDir: string): void {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const zip = new AdmZip(filePath);
+    zip.extractAllTo(targetDir, true);
+  }
 }
+
