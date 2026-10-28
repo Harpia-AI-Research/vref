@@ -1,8 +1,7 @@
-***
-
+---
 name: vref
 description: Package, inspect, validate, and extract .vref visual-reference packs (a ZIP containing manifest.json plus images) with the @harpiaresearch/vref library or CLI. Use when the user wants to bundle reference images for AI image generation, read or validate a .vref file, sample images from a pack, or build VREF support into a platform. Do not use for generic ZIP, archive, or image-editing tasks.
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 # VREF — Visual Reference Format
 
@@ -11,6 +10,11 @@ A `.vref` file is a ZIP container with `manifest.json` at the root plus one entr
 Supported image formats: `png`, `jpg`, `jpeg`, `webp`, `gif`, `avif`. Non-image files are rejected.
 
 ## When to use
+
+- Bundle a folder of reference images into a single `.vref`.
+- Inspect metadata, validate integrity, or extract a `.vref`.
+- Integrate reference sampling into an AI image-generation platform.
+- Read samples from a `.vref` at runtime and pass them as reference images.
 
 ## CLI
 
@@ -103,3 +107,10 @@ Typical platform integration: user uploads a `.vref` → `VREFReader.read(file, 
 `format` must be `VREF`. `validate()` checks that `imageCount` matches the archive entries and that every image listed in `images` exists.
 
 ## Constraints and gotchas
+
+- Only images are allowed. The writer validates both the extension and the file's magic bytes; a renamed non-image is rejected.
+- `addImage*` keys images by `path.basename`, so two different directories with the same file name silently overwrite each other. Rename before adding if names can collide.
+- Write the manifest last; the writer always emits it as the final ZIP entry.
+- `npm test` runs `node --test` against `dist/`, so run `npm run build` before testing.
+- `VREFReader.extract` uses `AdmZip.extractAllTo` and does not sanitize entry names. Only extract `.vref` files you trust.
+- `manifest.version` currently mirrors the npm package version, not an independent format version. Compare `version` loosely across releases.
