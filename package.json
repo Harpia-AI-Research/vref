@@ -1,6 +1,6 @@
 {
   "name": "@harpiaresearch/vref",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Visual Reference Format - Standardized container for curated visual references in AI image generation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

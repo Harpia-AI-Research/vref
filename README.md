@@ -174,7 +174,7 @@ writer.addImagesFromDirectory('./images');
 writer.write('references.vref');
 ```
 
-### Inspecting, Validating & Extracting via CLI
+### Inspecting, Validating, Extracting, Diffing, Signing & Building from URLs via CLI
 
 ```bash
 # Inspect metadata and images in a pack
@@ -185,6 +185,19 @@ vref validate references.vref
 
 # Extract images to a directory
 vref extract references.vref ./extracted-images
+
+# Compare two packs (versioning / updates)
+vref diff old.vref new.vref
+
+# Build a pack directly from image URLs (parallel, with retries)
+vref url https://example.com/a.png https://example.com/b.jpg \
+  -o web-refs.vref -n "Web References" \
+  --concurrency 5 --retry 3 --timeout 10000 --limit-mb 20 \
+  --name-pattern "{index}-{basename}"
+
+# Sign a manifest (Ed25519) and verify it
+vref seal references.vref -k private.pem -o signed.vref
+vref verify signed.vref
 ```
 
 ### Reading a .vref File
@@ -266,7 +279,7 @@ references.vref
 
 ```json
 {
-  "version": "1.0.3",
+  "version": "1.1.0",
   "format": "VREF",
   "fileName": "references.vref",
   "imageCount": 24,
@@ -276,9 +289,12 @@ references.vref
       "format": "png",
       "size": 45678,
       "width": 1920,
-      "height": 1080
+      "height": 1080,
+      "sha256": "9f2c…"
     }
   ],
+  "parentVersion": "1.0.2",
+  "imageContentHash": "a4e1…",
   "createdAt": "2026-10-13T10:30:00.000Z",
   "metadata": {
     "name": "RPG Sprites",
@@ -327,8 +343,10 @@ class VREFWriter {
   
   addImageFromFile(filePath: string): void;
   addImage(fileName: string, buffer: Buffer): void;
+  addImageFromUrl(url: string, options?: VREFUrlOptions): Promise<string>;
   addImagesFromDirectory(dirPath: string, recursive?: boolean): void;
   
+  seal(privateKeyPem: string): void;   // signs the next write() (Ed25519)
   write(outputPath: string): void;
   getImageCount(): number;
   clear(): void;
@@ -342,7 +360,11 @@ class VREFReader {
   static read(filePath: string, options?: VREFReadOptions): VREFReadResult;
   static readManifest(filePath: string): VREFManifest;
   static validate(filePath: string): { valid: boolean; errors: string[] };
-  static extract(filePath: string, targetDir: string): void;
+  static diff(aPath: string, bPath: string): VREFDiffResult;
+  static extract(filePath: string, targetDir: string): void;   // sanitized
+  static verifyContent(filePath: string): { valid: boolean; errors: string[] };
+  static seal(filePath: string, privateKeyPem: string, outputPath?: string): void;
+  static verify(filePath: string, publicKeyPem?: string): VREFVerifyResult;
 }
 ```
 

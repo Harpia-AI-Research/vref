@@ -16,6 +16,9 @@ export interface VREFManifest {
   
   /** ZIP compression version (if applicable) */
   zipVersion?: string;
+
+  /** Version of the pack this one updates (for soft/delta updates) */
+  parentVersion?: string;
   
   /** Name of the .vref file */
   fileName: string;
@@ -25,9 +28,18 @@ export interface VREFManifest {
   
   /** Array of image metadata */
   images: ImageMetadata[];
+
+  /** SHA-256 Merkle-style root over all image contents (ordered by path) */
+  imageContentHash?: string;
   
   /** ISO 8601 timestamp of creation */
   createdAt: string;
+
+  /** Base64 Ed25519 signature over the canonical manifest (see seal/verify) */
+  signature?: string;
+
+  /** PEM public key that can verify `signature` */
+  publicKey?: string;
   
   /** Optional metadata */
   metadata?: {
@@ -69,6 +81,9 @@ export interface ImageMetadata {
   
   /** Image height in pixels */
   height?: number;
+
+  /** SHA-256 content hash of the image bytes */
+  sha256?: string;
 }
 
 /**
@@ -92,6 +107,9 @@ export interface VREFCreateOptions {
   
   /** Optional license */
   license?: string;
+
+  /** Version of the pack this one updates (recorded in the manifest) */
+  parentVersion?: string;
   
   /** Additional metadata */
   metadata?: Record<string, any>;
@@ -123,6 +141,62 @@ export interface VREFReadResult {
   
   /** Get specific image by path */
   getImage: (path: string) => Buffer | undefined;
+}
+
+/**
+ * Options for VREFWriter.addImageFromUrl
+ */
+export interface VREFUrlOptions {
+  /** Per-attempt timeout in ms (default 30000) */
+  timeoutMs?: number;
+  /** Number of retries after the first attempt (default 0) */
+  retries?: number;
+  /** Maximum accepted size in bytes; downloads above are skipped */
+  maxBytes?: number;
+  /** File-name template with {index} and {basename} placeholders */
+  fileNameTemplate?: string;
+  /** 1-based index substituted for {index} in the template */
+  index?: number;
+}
+
+/**
+ * Result of verifying a signed .vref manifest
+ */
+export interface VREFVerifyResult {
+  valid: boolean;
+  errors: string[];
+  /** Short fingerprint of the verifying public key */
+  signer?: string;
+}
+
+/**
+ * A single image that changed between two packs, in a diff result
+ */
+export interface VREFDiffModified {
+  /** Image path within the packs */
+  path: string;
+  /** Size in the first (before) pack */
+  beforeSize: number;
+  /** Size in the second (after) pack */
+  afterSize: number;
+  /** SHA-256 of the first pack's image (if loadable) */
+  beforeHash?: string;
+  /** SHA-256 of the second pack's image (if loadable) */
+  afterHash?: string;
+}
+
+/**
+ * Result of comparing two .vref packs
+ */
+export interface VREFDiffResult {
+  /** Images present in B but not in A */
+  added: ImageMetadata[];
+  /** Images present in A but not in B */
+  removed: ImageMetadata[];
+  /** Images present in both with different content */
+  modified: VREFDiffModified[];
+  /** Number of images identical in both packs */
+  unchanged: number;
 }
 
 /**
