@@ -9,7 +9,7 @@ import * as path from 'path';
 import { VREFWriter } from './VREFWriter';
 import { VREFReader } from './VREFReader';
 
-const CLI_VERSION = '1.0.2';
+const CLI_VERSION = '1.0.3';
 
 function showHelp() {
   console.log(`

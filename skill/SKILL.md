@@ -92,7 +92,7 @@ Typical platform integration: user uploads a `.vref` → `VREFReader.read(file, 
 
 ```json
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "format": "VREF",
   "fileName": "pack.vref",
   "imageCount": 24,
@@ -109,7 +109,7 @@ Typical platform integration: user uploads a `.vref` → `VREFReader.read(file, 
 ## Constraints and gotchas
 
 - Only images are allowed. The writer validates both the extension and the file's magic bytes; a renamed non-image is rejected.
-- `addImage*` keys images by `path.basename`, so two different directories with the same file name silently overwrite each other. Rename before adding if names can collide.
+- `addImage*` keys images by `path.basename`. Adding an image whose name already exists in the pack throws `Duplicate image name`; in `addImagesFromDirectory` the duplicate is skipped with a warning. Rename files before adding if basenames can collide across directories.
 - Write the manifest last; the writer always emits it as the final ZIP entry.
 - `npm test` runs `node --test` against `dist/`, so run `npm run build` before testing.
 - `VREFReader.extract` uses `AdmZip.extractAllTo` and does not sanitize entry names. Only extract `.vref` files you trust.

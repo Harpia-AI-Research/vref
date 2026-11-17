@@ -59,6 +59,19 @@ describe('VREF Library Tests', () => {
     );
   });
 
+  test('VREFWriter rejects duplicate image names', () => {
+    const writer = new VREFWriter({ fileName: 'test.vref' });
+    writer.addImage('pixel.png', valid1x1Png);
+
+    assert.throws(
+      () => {
+        writer.addImage('pixel.png', valid1x1Png);
+      },
+      /Duplicate image name/,
+      'Should throw an error when adding an image with an existing name'
+    );
+  });
+
   test('VREFWriter creates a valid .vref file with metadata and image dimensions', () => {
     const writer = new VREFWriter({
       name: 'Test Reference Pack',
@@ -87,7 +100,7 @@ describe('VREF Library Tests', () => {
     const manifest = VREFReader.readManifest(sampleVrefPath);
 
     assert.strictEqual(manifest.format, 'VREF');
-    assert.strictEqual(manifest.version, '1.0.2');
+    assert.strictEqual(manifest.version, '1.0.3');
     assert.strictEqual(manifest.imageCount, 2);
     assert.strictEqual(manifest.metadata?.name, 'Test Reference Pack');
     assert.strictEqual(manifest.metadata?.author, 'Antigravity Test Suite');

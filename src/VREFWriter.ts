@@ -52,6 +52,14 @@ export class VREFWriter {
       throw new Error(`File ${fileName} does not appear to be a valid ${ext} image`);
     }
 
+    // Images are keyed by their file name; duplicate names would silently
+    // overwrite each other in the archive, so reject them explicitly.
+    if (this.images.has(fileName)) {
+      throw new Error(
+        `Duplicate image name: ${fileName}. Image names must be unique within a .vref pack.`
+      );
+    }
+
     this.images.set(fileName, buffer);
   }
 
@@ -112,7 +120,7 @@ export class VREFWriter {
 
     // Create manifest
     const manifest: VREFManifest = {
-      version: '1.0.2',
+      version: '1.0.3',
       format: 'VREF',
       fileName: this.options.fileName || path.basename(outputPath),
       imageCount: this.images.size,

@@ -266,7 +266,7 @@ references.vref
 
 ```json
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "format": "VREF",
   "fileName": "references.vref",
   "imageCount": 24,
